@@ -1,0 +1,31 @@
+###                                                     
+POST http://localhost:5000/api/v1/register
+Content-Type: application/json
+
+{
+    "username": "indah",
+    "password": "indah",
+    "fullname": "indah",
+    "isAdmin": 0,
+    "gender": "wanita",
+    "email": "indah@gmail.com",
+    "phone": "08123456789",
+    "idKamar": "89bd49f4-7da2-11f1-b66a-088fc3800c67",
+    "tanggalMasuk": "2026-07-12"
+}
+
+###
+POST http://localhost:5000/api/v1/login
+Content-Type: application/json
+
+{
+    "username": "indah",
+    "password": "indah"
+}
+
+###
+GET http://localhost:5000/api/v1/logout
+
+###
+GET http://localhost:5000/api/v1/getMe
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImFmYmVhOWRlLTI3NDAtNGMwYS1iNmQ1LTg0MjNhZmZjNjkxMiIsInVzZXJuYW1lIjoiYWRtaW4iLCJmdWxsbmFtZSI6ImFkbWluIiwiaXNBZG1pbiI6MSwiaWF0IjoxNzgzODI5ODc1LCJleHAiOjE3ODM5MTYyNzV9.IkKZUQ4Qn4inJfsj8Twrc6WRr9k6KhPNT7Zy2UStlSE
