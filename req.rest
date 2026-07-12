@@ -59,3 +59,26 @@ Content-Type: application/json
 ###
 DELETE http://localhost:5000/api/v1/kost/30aa98a1-7b67-4ec3-b37c-6e1a60567ead
 
+# ---------------------------------------- Kamar -----------------------------------------------
+###
+POST http://localhost:5000/api/v1/kamar/81c26aa9-23d5-4b2f-b9cd-5e26af08b832
+Content-Type: application/json
+
+{
+    "name": "2",
+    "harga": 250000,
+    "jatuhTempo": 24
+}
+
+###
+PATCH http://localhost:5000/api/v1/kamar/1077ed3a-1423-4053-8cc5-8353a1470769
+Content-Type: application/json
+
+{
+    "name": "Kamar 2",
+    "harga": 250000,
+    "jatuhTempo": 24
+}
+
+###
+DELETE http://localhost:5000/api/v1/kamar/1077ed3a-1423-4053-8cc5-8353a1470769
