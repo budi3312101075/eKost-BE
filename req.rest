@@ -19,8 +19,8 @@ POST http://localhost:5000/api/v1/login
 Content-Type: application/json
 
 {
-    "username": "indah",
-    "password": "indah"
+    "username": "admin",
+    "password": "admin"
 }
 
 ###
@@ -28,4 +28,34 @@ GET http://localhost:5000/api/v1/logout
 
 ###
 GET http://localhost:5000/api/v1/getMe
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImFmYmVhOWRlLTI3NDAtNGMwYS1iNmQ1LTg0MjNhZmZjNjkxMiIsInVzZXJuYW1lIjoiYWRtaW4iLCJmdWxsbmFtZSI6ImFkbWluIiwiaXNBZG1pbiI6MSwiaWF0IjoxNzgzODI5ODc1LCJleHAiOjE3ODM5MTYyNzV9.IkKZUQ4Qn4inJfsj8Twrc6WRr9k6KhPNT7Zy2UStlSE
+
+# ---------------------------------------- Kost -----------------------------------------------
+###
+GET http://localhost:5000/api/v1/kost
+
+###
+GET http://localhost:5000/api/v1/detailKost
+
+###
+POST http://localhost:5000/api/v1/kost
+Content-Type: application/json
+
+{
+    "name": "Kost Batam Center 2",
+    "lokasi": "Jl. Bukit Palem Permai No.2B, Belian, Kec. Batam Kota, Kota Batam, Kepulauan Riau 29464",
+    "jumlahKamar": 24
+}
+
+###
+PATCH http://localhost:5000/api/v1/kost/506d1e16-874e-4437-a177-a0376b27c409
+Content-Type: application/json
+
+{
+    "name": "kost A",
+    "lokasi": "kost A",
+    "jumlahKamar": 10
+}
+
+###
+DELETE http://localhost:5000/api/v1/kost/30aa98a1-7b67-4ec3-b37c-6e1a60567ead
+
