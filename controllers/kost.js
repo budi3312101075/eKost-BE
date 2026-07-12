@@ -1,228 +1,230 @@
+import dayjs from "dayjs";
 import { query } from "../utils/query.js";
-import { uuid } from "../utils/tools.cjs";
 
-export const getKost = async (req, res) => {
-  try {
-    const data = await query(
-      `SELECT id, name, lokasi, 
-            jumlah_kamar AS jumlahKamar 
-            FROM kost 
-            WHERE is_deleted = ?`,
-      [0],
-    );
+const getMonthRange = (startDate, endDate) => {
+  const result = [];
+  let cur = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+  const end = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
 
-    res.status(200).json({
-      status: 200,
-      message: "get data berhasil",
-      data,
+  while (cur <= end) {
+    result.push({
+      bulan: String(cur.getMonth() + 1).padStart(2, "0"),
+      tahun: String(cur.getFullYear()),
     });
-  } catch (error) {
-    res.status(500).json({ status: 500, message: "Internal Server Error" });
+    cur.setMonth(cur.getMonth() + 1);
   }
+  return result;
 };
 
-export const detailKost = async (req, res) => {
+export const getKamarByKost = async (req, res) => {
   try {
+    const { id } = req.params;
+
     const rows = await query(
-      `SELECT k.id, k.name, k.lokasi, k.jumlah_kamar AS jumlahKamar,
-              kr.id AS idKamar, kr.name AS nameKamar, kr.harga, kr.jatuh_tempo AS jatuhTempo
-              FROM kost k
-              INNER JOIN kamar kr ON k.id = kr.id_kost
-              WHERE k.is_deleted = 0 AND kr.is_deleted = 0
-              ORDER BY k.name ASC`,
+      `SELECT
+                k.id AS idKost,
+                k.name AS namaKost,
+ 
+                kr.id AS idKamar,
+                kr.name AS namaKamar,
+                kr.harga,
+                kr.jatuh_tempo AS jatuhTempo,
+ 
+                u.id AS idUser,
+                u.fullname,
+                u.gender,
+ 
+                pk.tanggal_masuk AS tanggalMasuk,
+                pk.tanggal_keluar AS tanggalKeluar,
+                pk.status AS statusPenghuni,
+ 
+                p.id AS idPembayaran,
+                p.bulan,
+                p.tahun,
+                p.status_users AS statusUser,
+                p.status_admin AS statusAdmin,
+                p.tanggal_pembayaran AS tanggalPembayaran
+ 
+            FROM kost k
+ 
+            LEFT JOIN kamar kr
+                ON kr.id_kost = k.id
+                AND kr.is_deleted = 0
+ 
+            LEFT JOIN penghuni_kamar pk
+                ON pk.id_kamar = kr.id
+                AND pk.status = 0
+ 
+            LEFT JOIN users u
+                ON u.id = pk.id_users
+ 
+            -- TIDAK difilter bulan/tahun lagi, kita butuh SEMUA history pembayaran
+            -- penghuni ini di kamar ini, biar bisa dibandingkan dgn bulan seharusnya bayar
+            LEFT JOIN pembayaran p
+                ON p.id_users = u.id
+                AND p.id_kamar = kr.id
+ 
+            WHERE k.id = ?
+            ORDER BY CAST(TRIM(SUBSTRING_INDEX(kr.name, '-', -1)) AS UNSIGNED) ASC,
+                     kr.name ASC,
+                     p.tahun ASC,
+                     p.bulan ASC
+        `,
+      [id],
     );
 
-    const kostMap = new Map();
-    for (const row of rows) {
-      if (!kostMap.has(row.id)) {
-        kostMap.set(row.id, {
-          id: row.id,
-          name: row.name,
-          lokasi: row.lokasi,
-          jumlahKamar: row.jumlahKamar,
-          kamar: [],
+    if (!rows.length) {
+      return res.status(404).json({
+        success: false,
+        message: "Data kost tidak ditemukan",
+      });
+    }
+
+    const now = new Date();
+
+    // Group per kamar (satu kamar bisa punya banyak baris pembayaran)
+    const kamarMap = new Map();
+
+    rows.forEach((row) => {
+      if (!kamarMap.has(row.idKamar)) {
+        kamarMap.set(row.idKamar, {
+          id: row.idKamar,
+          name: row.namaKamar,
+          harga: row.harga,
+          jatuhTempo: row.jatuhTempo,
+          penghuni: row.idUser
+            ? {
+                id: row.idUser,
+                fullname: row.fullname,
+                gender: row.gender,
+                tanggalMasuk: row.tanggalMasuk
+                  ? dayjs(row.tanggalMasuk).format("YYYY-MM-DD")
+                  : "-",
+                tanggalKeluar: row.tanggalKeluar
+                  ? dayjs(row.tanggalKeluar).format("YYYY-MM-DD")
+                  : "-",
+                status: row.statusPenghuni,
+              }
+            : null,
+          _pembayaranRows: [], // sementara, dibuang sebelum response final
         });
       }
-      kostMap.get(row.id).kamar.push({
-        id: row.idKamar,
-        name: row.nameKamar,
-        harga: row.harga,
-        jatuhTempo: row.jatuhTempo,
-      });
-    }
 
-    const data = Array.from(kostMap.values()).map((kost) => ({
-      ...kost,
-      kamar: kost.kamar.sort((a, b) =>
-        a.name.localeCompare(b.name, undefined, {
-          numeric: true,
-          sensitivity: "base",
-        }),
-      ),
-    }));
-
-    res.status(200).json({
-      status: 200,
-      message: "get data berhasil",
-      data,
+      if (row.idPembayaran) {
+        kamarMap.get(row.idKamar)._pembayaranRows.push({
+          idPembayaran: row.idPembayaran,
+          // normalisasi ke 2 digit ("6" -> "06") biar konsisten sama
+          // format yang dihasilkan getMonthRange(), dan gak keanggep beda bulan
+          bulan: String(row.bulan).padStart(2, "0"),
+          tahun: String(row.tahun),
+          statusUser: row.statusUser,
+          statusAdmin: row.statusAdmin,
+          tanggalPembayaran: row.tanggalPembayaran,
+        });
+      }
     });
-  } catch (error) {
-    res.status(500).json({ status: 500, message: "Internal Server Error" });
-  }
-};
 
-export const addKost = async (req, res) => {
-  const idKost = uuid();
-  const { name, lokasi, jumlahKamar } = req.body;
-  try {
-    if (!name?.trim() || !lokasi?.trim() || jumlahKamar == null) {
-      return res.status(400).json({
-        status: 400,
-        success: false,
-        message: "Semua field wajib diisi",
+    const kamar = Array.from(kamarMap.values()).map((k) => {
+      const { _pembayaranRows, penghuni, ...rest } = k;
+
+      // Kamar kosong (gak ada penghuni aktif) -> gak ada kewajiban bayar
+      if (!penghuni) {
+        return { ...rest, penghuni: null, pembayaran: null };
+      }
+
+      // TODO: sesuaikan dengan value asli status_admin di DB kamu.
+      // Di bawah ini nganggep pembayaran "lunas" kalau status_admin = "approved"/"lunas".
+      const isPaid = (statusAdmin) =>
+        ["approved", "lunas"].includes((statusAdmin || "").toLowerCase());
+
+      // Bulan yang SEHARUSNYA dibayar: dari bulan masuk s.d bulan berjalan sekarang
+      const tanggalMasuk = new Date(penghuni.tanggalMasuk);
+      const expectedMonths = getMonthRange(tanggalMasuk, now);
+
+      // Index pembayaran per "bulan-tahun" biar gampang dicocokin
+      const paymentByMonth = new Map();
+      _pembayaranRows.forEach((p) => {
+        paymentByMonth.set(`${p.bulan}-${p.tahun}`, p);
       });
-    }
 
-    if (Number(jumlahKamar) <= 0) {
-      return res.status(400).json({
-        status: 400,
-        success: false,
-        message: "Jumlah kamar harus lebih dari 0",
+      // Timeline bulan wajib bayar (dari bulan masuk s.d sekarang)
+      const riwayatWajib = expectedMonths.map(({ bulan, tahun }) => {
+        const payment = paymentByMonth.get(`${bulan}-${tahun}`);
+        return {
+          bulan,
+          tahun,
+          idPembayaran: payment?.idPembayaran || null,
+          statusAdmin: payment?.statusAdmin || null,
+          tanggalPembayaran: payment?.tanggalPembayaran || null,
+          status: payment
+            ? isPaid(payment.statusAdmin)
+              ? "lunas"
+              : "menunggu_konfirmasi"
+            : "belum_bayar",
+        };
       });
-    }
 
-    const exist = await query(
-      "SELECT id FROM kost WHERE name = ? AND is_deleted = ?",
-      [name, 0],
-    );
+      // Pembayaran yang tanggalnya LEBIH MAJU dari bulan sekarang -> dibayar di muka
+      const riwayatDimuka = _pembayaranRows
+        .filter(
+          (p) =>
+            !expectedMonths.some(
+              (m) => m.bulan === p.bulan && m.tahun === p.tahun,
+            ),
+        )
+        .map((p) => ({
+          bulan: p.bulan,
+          tahun: p.tahun,
+          idPembayaran: p.idPembayaran,
+          statusAdmin: p.statusAdmin,
+          tanggalPembayaran: p.tanggalPembayaran,
+          status: isPaid(p.statusAdmin)
+            ? "dibayar_dimuka"
+            : "menunggu_konfirmasi",
+        }));
 
-    if (exist.length) {
-      return res.status(409).json({
-        status: 409,
-        success: false,
-        message: "Nama kost sudah ada",
-      });
-    }
+      const totalBulanSeharusnya = riwayatWajib.length;
+      const totalNunggak = riwayatWajib.filter(
+        (r) => r.status === "belum_bayar",
+      ).length;
+      const totalSudahBayar = riwayatWajib.filter(
+        (r) => r.status === "lunas",
+      ).length;
+      const totalDibayarDimuka = riwayatDimuka.filter(
+        (r) => r.status === "dibayar_dimuka",
+      ).length;
 
-    await query(
-      `
-        INSERT INTO kost (id, name, lokasi, jumlah_kamar, is_deleted)
-        VALUES (?, ?, ?, ?, ?)`,
-      [idKost, name, lokasi, jumlahKamar, 0],
-    );
+      let statusRingkas = "lunas";
+      if (totalNunggak > 0) statusRingkas = "nunggak";
 
-    for (let i = 1; i <= jumlahKamar; i++) {
-      await query(
-        `
-                INSERT INTO kamar 
-                (id, name, harga, jatuh_tempo, id_kost) 
-                VALUES (?, ?, ?, ?, ?)`,
-        [uuid(), `Kamar ${i}`, 0, 1, idKost],
-      );
-    }
+      return {
+        ...rest,
+        penghuni,
+        pembayaran: {
+          totalBulanSeharusnya,
+          totalSudahBayar,
+          totalNunggak,
+          totalDibayarDimuka,
+          statusRingkas, // "lunas" | "nunggak"
+          riwayat: [...riwayatWajib, ...riwayatDimuka],
+        },
+      };
+    });
 
-    return res.status(201).json({
-      status: 201,
+    const kost = {
+      id: rows[0].idKost,
+      name: rows[0].namaKost,
+      kamar,
+    };
+
+    return res.status(200).json({
       success: true,
-      message: "Data kost berhasil ditambahkan",
+      data: kost,
     });
   } catch (error) {
     console.log(error);
+
     return res.status(500).json({
-      status: 500,
-      success: false,
-      message: "Internal server error",
-    });
-  }
-};
-
-export const updateKost = async (req, res) => {
-  const { id } = req.params;
-  const { name, lokasi, jumlahKamar } = req.body;
-  try {
-    if (!name?.trim() || !lokasi?.trim() || jumlahKamar == null) {
-      return res.status(400).json({
-        status: 400,
-        success: false,
-        message: "Semua field wajib diisi",
-      });
-    }
-
-    const [kost] = await query(
-      "SELECT id FROM kost WHERE id=? AND is_deleted = ?",
-      [id, 0],
-    );
-
-    if (!kost) {
-      return res.status(404).json({
-        status: 404,
-        success: false,
-        message: "Data tidak ditemukan",
-      });
-    }
-
-    const duplicate = await query(
-      "SELECT id FROM kost WHERE name=? AND id <> ? AND is_deleted = ?",
-      [name, id, 0],
-    );
-
-    if (duplicate.length) {
-      return res.status(409).json({
-        status: 4090,
-        success: false,
-        message: "Nama kost sudah digunakan",
-      });
-    }
-
-    await query(
-      `
-        UPDATE kost SET name = ?, lokasi = ?, jumlah_kamar = ?
-        WHERE id = ?`,
-      [name, lokasi, jumlahKamar, id],
-    );
-
-    return res.status(200).json({
-      status: 200,
-      success: true,
-      message: "Data berhasil diupdate",
-    });
-  } catch (error) {
-    return res.status(500).json({
-      status: 500,
-      success: false,
-      message: "Internal server error",
-    });
-  }
-};
-
-export const deleteKost = async (req, res) => {
-  const { id } = req.params;
-  try {
-    const [kost] = await query(
-      "SELECT id FROM kost WHERE id=? AND is_deleted = ?",
-      [id, 0],
-    );
-
-    if (!kost) {
-      return res.status(404).json({
-        status: 404,
-        success: false,
-        message: "Data tidak ditemukan",
-      });
-    }
-
-    await query("UPDATE kost SET is_deleted = ? WHERE id = ?", [1, id]);
-
-    await query("UPDATE kamar SET is_deleted = ? WHERE id_kost = ?", [1, id]);
-
-    return res.status(200).json({
-      status: 200,
-      success: true,
-      message: "Data berhasil dihapus",
-    });
-  } catch (error) {
-    return res.status(500).json({
-      status: 500,
       success: false,
       message: "Internal server error",
     });

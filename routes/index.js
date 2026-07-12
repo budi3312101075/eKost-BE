@@ -1,12 +1,12 @@
 import express from "express";
 import authRoutes from "./api/auth.js";
 import kostRoutes from "./api/kost.js";
-import kamarRoutes from "./api/kamar.js";
+import dataKostRoutes from "./api/dataKost.js";
 
 const app = express();
 
 app.use(authRoutes);
 app.use(kostRoutes);
-app.use(kamarRoutes);
+app.use(dataKostRoutes);
 
 export default app;
