@@ -7,7 +7,8 @@ export const getKost = async (req, res) => {
       `SELECT id, name, lokasi, 
             jumlah_kamar AS jumlahKamar 
             FROM kost 
-            WHERE is_deleted = ?`,
+            WHERE is_deleted = ?
+      ORDER BY name ASC`,
       [0],
     );
 
@@ -25,7 +26,7 @@ export const detailKost = async (req, res) => {
   try {
     const rows = await query(
       `SELECT k.id, k.name, k.lokasi, k.jumlah_kamar AS jumlahKamar,
-              kr.id AS idKamar, kr.name AS nameKamar, kr.harga, kr.jatuh_tempo AS jatuhTempo
+              kr.id AS idKamar, kr.name AS nameKamar, kr.harga
               FROM kost k
               INNER JOIN kamar kr ON k.id = kr.id_kost
               WHERE k.is_deleted = 0 AND kr.is_deleted = 0
@@ -47,7 +48,6 @@ export const detailKost = async (req, res) => {
         id: row.idKamar,
         name: row.nameKamar,
         harga: row.harga,
-        jatuhTempo: row.jatuhTempo,
       });
     }
 
@@ -231,9 +231,9 @@ export const deleteKost = async (req, res) => {
 
 export const addKamar = async (req, res) => {
   const idKost = req.params.id;
-  const { name, harga, jatuhTempo } = req.body;
+  const { name, harga } = req.body;
   try {
-    if (!name || !harga || !jatuhTempo || !idKost) {
+    if (!name || !harga || !idKost) {
       return res.status(400).json({
         status: 400,
         message: "Semua field wajib diisi",
@@ -255,9 +255,9 @@ export const addKamar = async (req, res) => {
 
     await query(
       `INSERT INTO kamar 
-        (id, name, harga, jatuh_tempo, id_kost) 
-        VALUES (?, ?, ?, ?, ?)`,
-      [uuid(), name, harga, jatuhTempo, idKost],
+        (id, name, harga, id_kost) 
+        VALUES (?, ?, ?, ?)`,
+      [uuid(), name, harga, idKost],
     );
 
     return res.status(201).json({
@@ -276,9 +276,9 @@ export const addKamar = async (req, res) => {
 
 export const updateKamar = async (req, res) => {
   const { id } = req.params;
-  const { name, harga, jatuhTempo } = req.body;
+  const { name, harga } = req.body;
   try {
-    if (!name || !harga || !jatuhTempo || !id) {
+    if (!name || !harga || !id) {
       return res.status(400).json({
         status: 400,
         message: "Semua field wajib diisi",
@@ -311,10 +311,11 @@ export const updateKamar = async (req, res) => {
       });
     }
 
-    await query(
-      `UPDATE kamar SET name = ?, harga = ?, jatuh_tempo = ? WHERE id = ?`,
-      [name, harga, jatuhTempo, id],
-    );
+    await query(`UPDATE kamar SET name = ?, harga = ? WHERE id = ?`, [
+      name,
+      harga,
+      id,
+    ]);
 
     return res.status(200).json({
       status: 200,
