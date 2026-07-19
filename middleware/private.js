@@ -10,13 +10,11 @@ export const privateRoutes = (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(
-      token,
-      process.env.ACCESS_TOKEN_SECRET
-    );
+    const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
 
     req.user = {
       id: decoded.sub ?? decoded.id,
+      idKamar: decoded.idKamar,
       role: decoded.role,
     };
 

@@ -14,7 +14,7 @@ if (cluster.isMaster) {
     cluster.fork();
 
     if (i === 1) {
-      scheduleJob("0 1 * * *", async function () { });
+      scheduleJob("0 1 * * *", async function () {});
     }
   }
 } else {
@@ -36,6 +36,7 @@ function startExpress() {
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
   app.use("/api/v1", Routes);
+  app.use("/public", express.static("public"));
 
   app.listen(process.env.APP_PORT, () => {
     console.log(

@@ -155,7 +155,7 @@ export const getKamarByKost = async (req, res) => {
           status: payment
             ? isPaid(payment.statusAdmin)
               ? "lunas"
-              : "menunggu_konfirmasi"
+              : "Menunggu Konfirmasi"
             : "belum_bayar",
         };
       });
@@ -176,12 +176,12 @@ export const getKamarByKost = async (req, res) => {
           tanggalPembayaran: p.tanggalPembayaran,
           status: isPaid(p.statusAdmin)
             ? "dibayar_dimuka"
-            : "menunggu_konfirmasi",
+            : "Menunggu Konfirmasi",
         }));
 
       const totalBulanSeharusnya = riwayatWajib.length;
       const totalNunggak = riwayatWajib.filter(
-        (r) => r.status === "belum_bayar",
+        (r) => r.status === "Menunggu Konfirmasi" || r.status === "belum_bayar",
       ).length;
       const totalSudahBayar = riwayatWajib.filter(
         (r) => r.status === "lunas",

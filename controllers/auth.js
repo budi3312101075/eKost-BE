@@ -1,7 +1,8 @@
 import { query } from "../utils/query.js";
 import jwt from "jsonwebtoken";
 import argon2 from "argon2";
-import { uuid } from "../utils/tools.cjs";
+import { mapStatusAdmin, STATUS_PEMBAYARAN, uuid } from "../utils/tools.cjs";
+import dayjs from "dayjs";
 
 export const register = async (req, res) => {
   const idUser = uuid();
@@ -75,11 +76,10 @@ export const login = async (req, res) => {
     }
 
     const users = await query(
-      `
-            SELECT u.id, u.username, u.password, u.fullname, u.is_admin AS isAdmin, pk.status
-            FROM users u 
-            LEFT JOIN penghuni_kamar pk ON u.id = pk.id_users
-            WHERE u.username = ?`,
+      `SELECT u.id, u.username, u.password, u.fullname, u.is_admin AS isAdmin, pk.id_kamar AS idKamar, pk.status
+       FROM users u 
+       LEFT JOIN penghuni_kamar pk ON u.id = pk.id_users
+       WHERE u.username = ?`,
       [username],
     );
 
@@ -103,6 +103,7 @@ export const login = async (req, res) => {
       id: user.id,
       username: user.username,
       fullname: user.fullname,
+      idKamar: user.idKamar,
       isAdmin: user.isAdmin,
     };
 
@@ -136,9 +137,8 @@ export const Logout = async (req, res) => {
 };
 
 export const getMe = async (req, res) => {
+  const { id } = req.user;
   try {
-    const { id } = req.user;
-
     const [user] = await query(
       `
             SELECT
@@ -151,13 +151,19 @@ export const getMe = async (req, res) => {
                 u.is_admin AS isAdmin,
                 pk.id_kamar AS idKamar,
                 k.name AS nameKamar,
-                pk.tanggal_masuk AS tanggalMasuk
+                k.harga AS tagihan,
+                k.id_kost AS idKost,
+                ko.name AS nameKost,
+                pk.tanggal_masuk AS tanggalMasuk,
+                pk.jatuh_tempo AS jatuhTempo
             FROM users u
             LEFT JOIN penghuni_kamar pk
                 ON u.id = pk.id_users
                 AND pk.status = 'Aktif'
             LEFT JOIN kamar k
                 ON k.id = pk.id_kamar
+            LEFT JOIN kost ko
+                ON ko.id = k.id_kost
             WHERE u.id = ?
             `,
       [id],
@@ -170,11 +176,52 @@ export const getMe = async (req, res) => {
       });
     }
 
+    let statusPembayaranBulanIni = null;
+
+    if (user.idKamar) {
+      const bulanIni = Number(dayjs().format("MM"));
+      const tahunIni = Number(dayjs().format("YYYY"));
+
+      const [pembayaranTerakhir] = await query(
+        `
+                SELECT bulan, tahun, status_admin AS statusAdmin
+                FROM pembayaran
+                WHERE id_users = ?
+                    AND id_kamar = ?
+                ORDER BY tahun DESC, bulan DESC
+                LIMIT 1
+                `,
+        [id, user.idKamar],
+      );
+
+      if (!pembayaranTerakhir) {
+        statusPembayaranBulanIni = STATUS_PEMBAYARAN.BELUM_BAYAR;
+      } else {
+        const periodeTerakhir =
+          Number(pembayaranTerakhir.tahun) * 12 +
+          Number(pembayaranTerakhir.bulan);
+        const periodeSekarang = tahunIni * 12 + bulanIni;
+
+        if (periodeTerakhir >= periodeSekarang) {
+          statusPembayaranBulanIni = mapStatusAdmin(
+            pembayaranTerakhir.statusAdmin,
+          );
+        } else {
+          statusPembayaranBulanIni = STATUS_PEMBAYARAN.NUNGGAK;
+        }
+      }
+    }
+
     return res.status(200).json({
       success: true,
-      data: user,
+      data: {
+        ...user,
+        statusPembayaranBulanIni,
+      },
     });
   } catch (error) {
+    console.log(error);
+
     return res.status(500).json({
       success: false,
       message: "Internal server error",

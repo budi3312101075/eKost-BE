@@ -19,8 +19,8 @@ POST http://localhost:5000/api/v1/login
 Content-Type: application/json
 
 {
-    "username": "admin",
-    "password": "admin"
+    "username": "budiprayoga",
+    "password": "budiprayoga"
 }
 
 ###
@@ -87,3 +87,8 @@ DELETE http://localhost:5000/api/v1/kamar/1077ed3a-1423-4053-8cc5-8353a1470769
 
 ###
 GET http://localhost:5000/api/v1/kamarbykost/dc914ff4-43c8-4d26-85c1-42b9e4de81fe
+
+# ---------------------------------------- PEMBAYARAN -----------------------------------------------
+
+###
+GET http://localhost:5000/api/v1/riwayatPembayaran
