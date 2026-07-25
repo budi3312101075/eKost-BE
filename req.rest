@@ -92,3 +92,6 @@ GET http://localhost:5000/api/v1/kamarbykost/dc914ff4-43c8-4d26-85c1-42b9e4de81f
 
 ###
 GET http://localhost:5000/api/v1/riwayatPembayaran
+
+###
+GET http://localhost:5000/api/v1/pembayaranAdmin

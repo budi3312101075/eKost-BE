@@ -98,3 +98,103 @@ export const riwayatPembayaran = async (req, res) => {
     });
   }
 };
+
+export const getPembayaranAdmin = async (req, res) => {
+  try {
+    const pembayaran = await query(
+      `SELECT
+          p.id,
+          p.bulan,
+          p.tahun,
+          p.status_users AS statusUser,
+          p.comment_users AS commentUsers,
+          p.status_admin AS statusAdmin,
+          p.comment_admin AS commentAdmin,
+          p.tanggal_pembayaran AS tanggalPembayaran,
+          p.bukti_pembayaran AS buktiPembayaran,
+          u.id AS idUser,
+          u.fullname,
+          u.phone,
+          k.id AS idKamar,
+          k.name AS namaKamar,
+          k.harga,
+          ko.id AS idKost,
+          ko.name AS namaKost
+      FROM pembayaran p
+      JOIN users u
+          ON u.id = p.id_users
+      JOIN kamar k
+          ON k.id = p.id_kamar
+      JOIN kost ko
+          ON ko.id = k.id_kost
+      WHERE LOWER(TRIM(p.status_admin)) != 'lunas'
+      ORDER BY p.tanggal_pembayaran ASC`,
+    );
+
+    return res.status(200).json({
+      status: 200,
+      success: true,
+      message: "Pembayaran menunggu konfirmasi berhasil diambil",
+      data: pembayaran,
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      status: 500,
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+export const konfirmasiPembayaran = async (req, res) => {
+  const { id, statusAdmin, commentAdmin } = req.body;
+
+  try {
+    const pembayaran = await query("SELECT id FROM pembayaran WHERE id = ?", [
+      id,
+    ]);
+
+    if (pembayaran.length === 0) {
+      return res.status(404).json({
+        status: 404,
+        success: false,
+        message: "Pembayaran tidak ditemukan",
+      });
+    }
+
+    if (statusAdmin === "Selesai") {
+      await query(
+        "UPDATE pembayaran SET status_users = ?, status_admin = ?, comment_admin = ? WHERE id = ?",
+        ["lunas", "lunas", "lunas", id],
+      );
+    }
+
+    if (statusAdmin === "Ditolak") {
+      await query(
+        "UPDATE pembayaran SET status_admin = ?, comment_admin = ? WHERE id = ?",
+        [statusAdmin, commentAdmin, id],
+      );
+    }
+
+    if (statusAdmin === "Nunggak") {
+      await query(
+        "UPDATE pembayaran SET status_admin = ?, comment_admin = ? WHERE id = ?",
+        [statusAdmin, commentAdmin, id],
+      );
+    }
+
+    return res.status(200).json({
+      status: 200,
+      success: true,
+      message: "Pembayaran berhasil di konfirmasi",
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      status: 500,
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
